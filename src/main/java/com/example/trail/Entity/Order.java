@@ -1,65 +1,78 @@
 package com.example.trail.Entity;
 
 
-import jakarta.persistence.*;
-import java.sql.Timestamp;
+import java.time.Instant;
+
+import com.example.trail.coverter.InstantToStringConverter;
+import com.fasterxml.jackson.annotation.JsonIgnore;
+
+import jakarta.persistence.Column;
+import jakarta.persistence.Convert;
+import jakarta.persistence.Entity;
+import jakarta.persistence.FetchType;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.ManyToOne;
+import jakarta.persistence.Table;
 
 @Entity
 @Table(name = "orders")
 public class Order {
 
     @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(name = "order_id")
-    private Long orderId;
-    
-    @Column(name = "user_id")
-    private Long userId;
-    
+    private Long id;
+
+    // Use @JsonIgnore to prevent serialization of the lazy-loaded proxy.
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "user_id", referencedColumnName = "id")
+    @JsonIgnore
+    private User user;
+
     private String status;
-    private Character gender;
+
+    @Column(name = "product")
+    private String product;
+
+    @Column(name = "order_amount")
+    private Double orderAmount;
+
+    // Use the new converter to handle string-based timestamps.
+    @Convert(converter = InstantToStringConverter.class)
+    @Column(name = "shipped_at", nullable = true)
+    private Instant shippedAt;
+
+    @Convert(converter = InstantToStringConverter.class)
+    @Column(name = "delivered_at", nullable = true)
+    private Instant deliveredAt;
+
+    @Convert(converter = InstantToStringConverter.class)
+    @Column(name = "returned_at", nullable = true)
+    private Instant returnedAt;
     
-    @Column(name = "created_at")
-    private Timestamp createdAt;
-    
-    @Column(name = "returned_at")
-    private Timestamp returnedAt;
-    
-    @Column(name = "shipped_at")
-    private Timestamp shippedAt;
-    
-    @Column(name = "delivered_at")
-    private Timestamp deliveredAt;
-    
-    @Column(name = "num_of_item")
-    private Integer numOfItem;
+    public Order() {}
 
     // Getters and Setters
-    public Long getOrderId() { return orderId; }
-    public void setOrderId(Long orderId) { this.orderId = orderId; }
 
-    public Long getUserId() { return userId; }
-    public void setUserId(Long userId) { this.userId = userId; }
-
+    public Long getId() { return id; }
+    public void setId(Long id) { this.id = id; }
+    public User getUser() { return user; }
+    public void setUser(User user) { this.user = user; }
     public String getStatus() { return status; }
     public void setStatus(String status) { this.status = status; }
-
-    public Character getGender() { return gender; }
-    public void setGender(Character gender) { this.gender = gender; }
-
-    public Timestamp getCreatedAt() { return createdAt; }
-    public void setCreatedAt(Timestamp createdAt) { this.createdAt = createdAt; }
-
-    public Timestamp getReturnedAt() { return returnedAt; }
-    public void setReturnedAt(Timestamp returnedAt) { this.returnedAt = returnedAt; }
-
-    public Timestamp getShippedAt() { return shippedAt; }
-    public void setShippedAt(Timestamp shippedAt) { this.shippedAt = shippedAt; }
-
-    public Timestamp getDeliveredAt() { return deliveredAt; }
-    public void setDeliveredAt(Timestamp deliveredAt) { this.deliveredAt = deliveredAt; }
-
-    public Integer getNumOfItem() { return numOfItem; }
-    public void setNumOfItem(Integer numOfItem) { this.numOfItem = numOfItem; }
+    public String getProduct() { return product; }
+    public void setProduct(String product) { this.product = product; }
+    public Double getOrderAmount() { return orderAmount; }
+    public void setOrderAmount(Double orderAmount) { this.orderAmount = orderAmount; }
+    public Instant getShippedAt() { return shippedAt; }
+    public void setShippedAt(Instant shippedAt) { this.shippedAt = shippedAt; }
+    
+    public Instant getDeliveredAt() { return deliveredAt; }
+    public void setDeliveredAt(Instant deliveredAt) { this.deliveredAt = deliveredAt; }
+    
+    public Instant getReturnedAt() { return returnedAt; }
+    public void setReturnedAt(Instant returnedAt) { this.returnedAt = returnedAt; }
 }
-
-//
