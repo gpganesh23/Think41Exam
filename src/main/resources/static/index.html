@@ -1,0 +1,264 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Customer and Order Dashboard</title>
+    <!-- Use Tailwind CSS for modern styling -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f3f4f6;
+        }
+        .modal-overlay {
+            display: none; /* Hidden by default */
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+            backdrop-filter: blur(5px);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
+        }
+        .modal-content {
+            width: 90%;
+            max-width: 700px;
+            max-height: 90%;
+            overflow-y: auto;
+        }
+    </style>
+</head>
+<body class="bg-gray-100 p-4 sm:p-8">
+
+    <div class="max-w-6xl mx-auto bg-white p-6 rounded-2xl shadow-lg">
+        <h1 class="text-3xl font-bold text-gray-800 text-center mb-6">Customer and Order Dashboard</h1>
+
+        <!-- Search Input -->
+        <div class="mb-6">
+            <input type="text" id="search-input" placeholder="Search by name, email, or ID..."
+                   class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition-shadow duration-200">
+        </div>
+
+        <!-- Display area for messages (loading, error, empty) -->
+        <div id="status-message" class="text-center text-gray-600 font-medium"></div>
+
+        <!-- Container for customer cards -->
+        <div id="customers-container" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <!-- Customer cards will be rendered here by JavaScript -->
+        </div>
+    </div>
+
+    <!-- Modal for displaying customer details and orders -->
+    <div id="customer-modal" class="modal-overlay">
+        <div class="modal-content bg-white p-6 rounded-xl shadow-xl">
+            <div class="flex justify-between items-center mb-4 border-b pb-2">
+                <h2 id="modal-customer-name" class="text-2xl font-bold text-gray-800"></h2>
+                <button id="close-modal" class="text-gray-500 hover:text-gray-900 transition-colors duration-200">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                </button>
+            </div>
+            
+            <div id="modal-body" class="space-y-4">
+                <!-- Customer details and orders will be dynamically loaded here -->
+            </div>
+            <div id="modal-status" class="text-center text-gray-600 font-medium mt-4"></div>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const searchInput = document.getElementById('search-input');
+            const statusMessage = document.getElementById('status-message');
+            const customersContainer = document.getElementById('customers-container');
+            const customerModal = document.getElementById('customer-modal');
+            const modalCustomerName = document.getElementById('modal-customer-name');
+            const modalBody = document.getElementById('modal-body');
+            const modalStatus = document.getElementById('modal-status');
+            const closeModalBtn = document.getElementById('close-modal');
+            let allCustomers = [];
+
+            // Function to fetch customers from the API
+            const fetchCustomers = async () => {
+                statusMessage.textContent = 'Loading customers...';
+                try {
+                    const response = await fetch('http://localhost:8080/api/customers');
+                    if (!response.ok) {
+                        throw new Error(`HTTP error! status: ${response.status}`);
+                    }
+                    allCustomers = await response.json();
+                    renderCustomers(allCustomers);
+                } catch (error) {
+                    console.error('Failed to fetch customers:', error);
+                    statusMessage.textContent = 'Failed to load customers. Please ensure the backend is running.';
+                    customersContainer.innerHTML = '';
+                }
+            };
+
+            // Function to fetch a single customer's details and their orders
+            const fetchCustomerDetailsAndOrders = async (customerId) => {
+                modalStatus.textContent = 'Loading details and orders...';
+                modalBody.innerHTML = ''; // Clear previous details
+                
+                try {
+                    // Fetch customer details
+                    const customerResponse = await fetch(`http://localhost:8080/api/customers/${customerId}`);
+                    if (!customerResponse.ok) {
+                        throw new Error(`Failed to fetch customer details! status: ${customerResponse.status}`);
+                    }
+                    const customer = await customerResponse.json();
+
+                    // Fetch customer's orders
+                    const ordersResponse = await fetch(`http://localhost:8080/api/customers/${customerId}/orders`);
+                    if (!ordersResponse.ok) {
+                        throw new Error(`Failed to fetch orders! status: ${ordersResponse.status}`);
+                    }
+                    const orders = await ordersResponse.json();
+
+                    modalStatus.textContent = '';
+                    renderCustomerDetails(customer, orders);
+
+                } catch (error) {
+                    console.error('Failed to fetch customer details or orders:', error);
+                    modalStatus.textContent = 'Failed to load details. Please try again.';
+                    modalBody.innerHTML = '';
+                }
+            };
+
+            // Function to render customer cards
+            const renderCustomers = (customers) => {
+                customersContainer.innerHTML = ''; // Clear previous content
+                if (customers.length === 0) {
+                    statusMessage.textContent = 'No customers found.';
+                    return;
+                }
+                
+                statusMessage.textContent = '';
+                customers.forEach(customer => {
+                    const card = document.createElement('div');
+                    card.className = 'bg-white rounded-lg shadow-md p-5 transform hover:scale-105 transition-transform duration-200 cursor-pointer';
+                    card.dataset.customerId = customer.id;
+
+                    card.innerHTML = `
+                        <h2 class="text-xl font-semibold text-gray-900">${customer.firstName} ${customer.lastName}</h2>
+                        <p class="text-gray-600 mt-1">Email: ${customer.email}</p>
+                        <p class="text-gray-600">Country: ${customer.country}</p>
+                        <div class="mt-3 text-sm font-bold text-blue-600 flex items-center">
+                            <span class="mr-2">Order Count:</span>
+                            <span>${customer.orderCount || 0}</span>
+                        </div>
+                    `;
+                    customersContainer.appendChild(card);
+
+                    // Add click listener to show modal
+                    card.addEventListener('click', () => {
+                        modalCustomerName.textContent = `${customer.firstName} ${customer.lastName}`;
+                        customerModal.style.display = 'flex';
+                        fetchCustomerDetailsAndOrders(customer.id);
+                    });
+                });
+            };
+
+            // Function to render customer details and orders in the modal
+            const renderCustomerDetails = (customer, orders) => {
+                let detailsHtml = `
+                    <div class="p-4 bg-gray-50 rounded-lg">
+                        <h3 class="text-lg font-bold text-gray-700 mb-2">Customer Information</h3>
+                        <p><strong>Email:</strong> ${customer.email}</p>
+                        <p><strong>Age:</strong> ${customer.age || 'N/A'}</p>
+                        <p><strong>Gender:</strong> ${customer.gender || 'N/A'}</p>
+                        <p><strong>Country:</strong> ${customer.country || 'N/A'}</p>
+                        <p><strong>Joined:</strong> ${customer.createdAt ? new Date(customer.createdAt).toLocaleDateString() : 'N/A'}</p>
+                    </div>
+                `;
+                
+                let ordersHtml = `<h3 class="text-lg font-bold text-gray-700 mb-2 mt-4">Orders (${orders.length})</h3>`;
+                if (orders.length > 0) {
+                    ordersHtml += `
+                        <ul class="space-y-2">
+                            ${orders.map(order => `
+                                <li class="p-4 bg-white rounded-lg border border-gray-200 shadow-sm">
+                                    <p><strong>Order ID:</strong> ${order.id}</p>
+                                    <p><strong>Product:</strong> ${order.product || 'N/A'}</p>
+                                    <p><strong>Amount:</strong> $${order.orderAmount ? order.orderAmount.toFixed(2) : '0.00'}</p>
+                                    <p><strong>Status:</strong> <span class="font-medium text-blue-600">${order.status || 'N/A'}</span></p>
+                                </li>
+                            `).join('')}
+                        </ul>
+                    `;
+                } else {
+                    ordersHtml += `<p class="text-center text-gray-500">This customer has no orders.</p>`;
+                }
+
+                modalBody.innerHTML = detailsHtml + ordersHtml;
+            };
+
+            // Function to handle search functionality
+            const handleSearch = async () => {
+                const searchTerm = searchInput.value.trim();
+                
+                // Check if the search term is a valid number (customer ID)
+                if (!isNaN(searchTerm) && searchTerm !== '') {
+                    statusMessage.textContent = 'Searching by ID...';
+                    customersContainer.innerHTML = '';
+                    try {
+                        const response = await fetch(`http://localhost:8080/api/customers/${searchTerm}`);
+                        if (!response.ok) {
+                            if (response.status === 404) {
+                                statusMessage.textContent = `Customer with ID ${searchTerm} not found.`;
+                            } else {
+                                throw new Error(`HTTP error! status: ${response.status}`);
+                            }
+                            return;
+                        }
+                        const customer = await response.json();
+                        renderCustomers([customer]); // Render a single customer in an array
+                    } catch (error) {
+                        console.error('Failed to fetch customer by ID:', error);
+                        statusMessage.textContent = 'An error occurred while searching. Please try again.';
+                        customersContainer.innerHTML = '';
+                    }
+                } else if (searchTerm !== '') {
+                    // Fallback to local filtering by name or email
+                    const filteredCustomers = allCustomers.filter(customer => {
+                        const fullName = `${customer.firstName} ${customer.lastName}`.toLowerCase();
+                        const email = customer.email.toLowerCase();
+                        return fullName.includes(searchTerm.toLowerCase()) || email.includes(searchTerm.toLowerCase());
+                    });
+                    renderCustomers(filteredCustomers);
+                } else {
+                    // If search input is empty, show all customers
+                    renderCustomers(allCustomers);
+                }
+            };
+
+            // Add event listener for the search input
+            searchInput.addEventListener('input', handleSearch);
+
+            // Add event listener to close the modal
+            closeModalBtn.addEventListener('click', () => {
+                customerModal.style.display = 'none';
+            });
+
+            // Close modal when clicking outside the content
+            window.addEventListener('click', (event) => {
+                if (event.target === customerModal) {
+                    customerModal.style.display = 'none';
+                }
+            });
+
+            // Initial fetch of customers
+            fetchCustomers();
+        });
+    </script>
+
+</body>
+</html>
